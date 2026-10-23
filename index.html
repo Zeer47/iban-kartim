@@ -1,0 +1,63 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBAN Bilgileri</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f4;
+      margin: 0;
+      padding: 24px;
+      color: #183b35;
+    }
+    .kart {
+      max-width: 400px;
+      margin: 60px auto;
+      padding: 28px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 5px 24px #00000012;
+    }
+    h1 { font-size: 25px; }
+    .etiket { color: #68736f; margin-top: 25px; }
+    .iban { overflow-wrap: anywhere; font-weight: bold; }
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 22px;
+      background: #183b35;
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <main class="kart">
+    <h1>IBAN Bilgileri</h1>
+    <p class="etiket">Hesap sahibi</p>
+    <p id="isim"><!-- İsmi birazdan ekleyeceğiz --></p>
+    <p class="etiket">IBAN numarası</p>
+    <p id="iban" class="iban"><!-- IBAN'ı birazdan ekleyeceğiz --></p>
+    <button onclick="kopyala()">IBAN'ı Kopyala</button>
+  </main>
+
+  <script>
+    const hesapSahibi = "AD SOYAD";
+    const ibanNumarasi = "TR00 0000 0000 0000 0000 0000 00";
+
+    document.getElementById("isim").textContent = hesapSahibi;
+    document.getElementById("iban").textContent = ibanNumarasi;
+
+    function kopyala() {
+      navigator.clipboard.writeText(ibanNumarasi)
+        .then(() => alert("IBAN kopyalandı!"))
+        .catch(() => alert("IBAN kopyalanamadı. Lütfen elle kopyalayın."));
+    }
+  </script>
+</body>
+</html>
