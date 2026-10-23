@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zeer IBAN Yönetim Paneli</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:760px;margin:30px auto;padding:16px;background:#f4f6f8;color:#172033}
+    h1{font-size:25px} section{background:white;padding:18px;border-radius:12px;margin:16px 0}
+    input,button{box-sizing:border-box;width:100%;padding:12px;margin:7px 0;border-radius:8px;border:1px solid #ccd2dc;font-size:16px}
+    button{background:#142c4e;color:white;border:0;font-weight:bold}
+    .item{border-top:1px solid #ddd;padding:12px 0;overflow-wrap:anywhere}
+    .muted{color:#5b6574;font-size:14px}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <h1>Zeer IBAN Yönetim Paneli</h1>
+  <p class="muted">Kartlarını buradan yönet.</p>
+
+  <section id="login">
+    <h3>Yönetici girişi</h3>
+    <input id="email" type="email" placeholder="E-posta adresin">
+    <input id="password" type="password" placeholder="Şifren">
+    <button id="loginBtn">Giriş yap</button>
+  </section>
+
+  <section id="panel" class="hidden">
+    <button id="logoutBtn">Çıkış yap</button>
+    <h3>Yeni IBAN kartı ekle</h3>
+    <input id="owner" placeholder="Kişi veya işletme adı">
+    <input id="iban" placeholder="TR ile başlayan IBAN">
+    <button id="addBtn">Kartı kaydet</button>
+    <p id="status" class="muted"></p>
+    <h3>Kayıtlı kartlar</h3>
+    <div id="cards"></div>
+  </section>
+
+<script>
+const SUPABASE_URL = "https://erhmhhneoodngfjvldkc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zXb9-iTC9qrMPhVqZdkBlw_Szk6Adob";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+function status(message) { $("status").textContent = message; }
+
+async function refresh() {
+  const { data, error } = await db.from("iban_cards")
+    .select("id,owner_name,iban,public_token,created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) { status("Kayıtlar alınamadı: " + error.message); return; }
+
+  $("cards").innerHTML = "";
+  data.forEach(card => {
+    const div = document.createElement("div");
+    div.className = "item";
+    const name = document.createElement("strong");
+    name.textContent = card.owner_name;
+    const details = document.createElement("p");
+    details.textContent = card.iban;
+    const link = document.createElement("p");
+    link.textContent = location.origin + location.pathname.replace(/admin\.html$/, "") +
+      "?id=" + card.public_token;
+    link.className = "muted";
+    const copy = document.createElement("button");
+    copy.textContent = "Kart bağlantısını kopyala";
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(link.textContent);
+        status("Bağlantı kopyalandı.");
+      } catch {
+        status("Bağlantı: " + link.textContent);
+      }
+    };
+    const edit = document.createElement("button");
+    edit.textContent = "Düzenle";
+    edit.onclick = async () => {
+      const newName = prompt("Kişi/işletme adı:", card.owner_name);
+      if (newName === null) return;
+      const newIban = prompt("IBAN:", card.iban);
+      if (newIban === null) return;
+      const { error } = await db.from("iban_cards")
+        .update({ owner_name: newName.trim(), iban: newIban.trim() })
+        .eq("id", card.id);
+      status(error ? error.message : "Kart güncellendi.");
+      if (!error) refresh();
+    };
+    const remove = document.createElement("button");
+    remove.textContent = "Kartı sil";
+    remove.onclick = async () => {
+      if (!confirm(card.owner_name + " kaydı silinsin mi?")) return;
+      const { error } = await db.from("iban_cards").delete().eq("id", card.id);
+      status(error ? error.message : "Kart silindi.");
+      if (!error) refresh();
+    };
+    div.append(name, details, link, copy, edit, remove);
+    $("cards").appendChild(div);
+  });
+}
+
+async function checkSession() {
+  const { data } = await db.auth.getSession();
+  const loggedIn = !!data.session;
+  $("login").classList.toggle("hidden", loggedIn);
+  $("panel").classList.toggle("hidden", !loggedIn);
+  if (loggedIn) refresh();
+}
+
+$("loginBtn").onclick = async () => {
+  const { error } = await db.auth.signInWithPassword({
+    email: $("email").value.trim(),
+    password: $("password").value
+  });
+  if (error) { alert("Giriş yapılamadı: " + error.message); return; }
+  checkSession();
+};
+
+$("logoutBtn").onclick = async () => {
+  await db.auth.signOut();
+  checkSession();
+};
+
+$("addBtn").onclick = async () => {
+  const owner_name = $("owner").value.trim();
+  const iban = $("iban").value.replace(/\s/g, "");
+  if (!owner_name || !iban) { status("İsim ve IBAN alanlarını doldur."); return; }
+  if (!/^TR\d{24}$/.test(iban)) {
+    status("IBAN formatını kontrol et. Türkiye IBAN'ı TR ve ardından 24 rakam içerir.");
+    return;
+  }
+  const { error } = await db.from("iban_cards").insert({ owner_name, iban });
+  if (error) { status("Kaydedilemedi: " + error.message); return; }
+  $("owner").value = "";
+  $("iban").value = "";
+  status("Kart kaydedildi.");
+  refresh();
+};
+
+checkSession();
+</script>
+</body>
+</html>
